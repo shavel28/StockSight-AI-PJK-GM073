@@ -134,8 +134,52 @@ Seluruh dataset telah melalui proses validasi, preprocessing, feature engineerin
 ---
 
 ### 🤖 Machine Learning
-**Role: Dianwan**
-*(Silakan isi detail proses pengembangan model di sini)*
+**Role: Dianwan Noven Nur Fauzian**
+
+## 🚀 Langkah-Langkah Pengembangan Model
+### 1. Impor Library
+Mengimpor pustaka utama untuk manipulasi data (`pandas`, `numpy`), visualisasi (`matplotlib`, `seaborn`), pemodelan (`Prophet`), dan metrik evaluasi (`sklearn.metrics`).
+
+### 2. Memuat dan Menyiapkan Data
+Data historis dimuat dari file CSV. Agar kompatibel dengan pustaka Prophet, DataFrame harus disesuaikan formatnya:
+*   Kolom waktu/tanggal harus diubah namanya menjadi `ds`.
+*   Kolom target prediksi (nilai yang ingin diramal) harus diubah namanya menjadi `y`.
+
+### 3. Rekayasa Fitur (Feature Engineering)
+Meskipun Prophet menangani musiman secara otomatis, ekstraksi fitur waktu eksplisit dilakukan untuk analisis eksploratif. Fitur yang diekstrak meliputi:
+*   `hour`, `dayofweek`, `quarter`, `month`, `year`
+*   `weekday` dan `season` (Spring, Summer, Fall, Winter)
+
+### 4. Pemisahan Data (Train/Test Split)
+Data deret waktu dibagi berdasarkan batasan tanggal kronologis (tanggal potong / *split date*):
+*   **Data Latih (Training Set):** Data sebelum tanggal potong, digunakan untuk melatih model.
+*   **Data Uji (Testing Set):** Data setelah tanggal potong, digunakan sebagai validasi terhadap data aktual yang disembunyikan.
+
+### 5. Pembuatan dan Pelatihan Model
+Model `Prophet` diinisialisasi dan dilatih menggunakan *Training Set*. Pada tahap ini, model mempelajari tren garis dasar serta variasi musiman (harian, mingguan, tahunan) dari data:
+
+```python
+from prophet import Prophet
+model = Prophet()
+model.fit(df_train_prophet)
+```
+
+### 6. Proses Prediksi (Forecasting)
+Setelah dilatih, model digunakan untuk memprediksi kerangka waktu pada *Testing Set*. Prophet mengembalikan sebuah DataFrame hasil prediksi yang berisi:
+*   `yhat`: Nilai ramalan (prediksi).
+*   `yhat_lower` & `yhat_upper`: Batas bawah dan atas dari interval ketidakpastian/kepercayaan.
+
+### 7. Evaluasi Model
+Kinerja prediksi dievaluasi dengan membandingkan nilai ramalan (`yhat`) terhadap data aktual di *Testing Set*. Metrik yang umum digunakan dalam pipeline ini:
+*   **MAPE** (Mean Absolute Percentage Error)
+*   **MAE** (Mean Absolute Error)
+*   **MSE** (Mean Squared Error)
+
+## 📊 Visualisasi
+Notebook ini menyertakan visualisasi bawaan yang berguna:
+*   Distribusi nilai per hari atau per musim.
+*   Plot pemisahan data antara *Train* dan *Test*.
+*   Plot peramalan Prophet yang menunjukkan komponen tren dan interval kepercayaan yang memisahkan data masa lalu dengan masa depan.
 
 ---
 
