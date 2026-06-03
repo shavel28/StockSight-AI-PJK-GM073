@@ -98,3 +98,21 @@ stocksight-api/
 | `revenue`       | float      | Tidak |
 | `category`      | string     | Tidak |
 | `region`        | string     | Tidak |
+
+#### Bukti Testing Endpoints API
+
+Seluruh endpoint telah diuji menggunakan Postman untuk memastikan fungsionalitas API berjalan dengan baik.
+
+| Feature            | Endpoint                    | Status |
+| ------------------ | --------------------------- | ------ |
+| Authentication     | POST /auth/register         | ✅     |
+| Authentication     | POST /auth/login            | ✅     |
+| CSV Upload         | POST /uploads               | ✅     |
+| Product Data       | GET /products               | ✅     |
+| Forecasting        | POST /forecasts             | ✅     |
+| Forecast Result    | GET /forecasts/{id}/details | ✅     |
+| Inventory Analysis | GET /inventory/reorder      | ✅     |
+| Dashboard Summary  | GET /dashboard/summary      | ✅     |
+
+📄 Dokumentasi lengkap pengujian dapat dilihat pada:
+[Backend API Testing](docs/Backend_API_Testing.pdf)
