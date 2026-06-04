@@ -1,0 +1,4 @@
+Category,Average Daily Demand,Max Daily Demand,Std Daily Demand,Lead Time (Days),Service Level Z,Safety Stock,Reorder Point (ROP)
+Furniture,0.0,0.0,0.0,7,1.65,0.0,0.0
+Office Supplies,38.9,161.13,65.4,7,1.65,285.52,557.8
+Technology,0.0,0.0,0.0,7,1.65,0.0,0.0

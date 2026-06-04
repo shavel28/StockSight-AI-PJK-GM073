@@ -1,0 +1,4 @@
+Category,Q1,Q3,IQR,Lower Bound,Upper Bound,Outlier Count
+Technology,0.0,0.0,0.0,0,0.0,334
+Furniture,0.0,0.0,0.0,0,0.0,336
+Office Supplies,0.0,64.45,64.45,0,161.13,274
