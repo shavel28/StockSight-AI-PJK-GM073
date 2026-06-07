@@ -8,9 +8,9 @@ StockSight AI adalah solusi cerdas untuk membantu UMKM mengelola stok barang sec
 
 ## 👥 Kontribusi Anggota Tim
 
-### 📂 Data Engineering
+### 📂 Shava Selvia Ramadhani Subekti
 
-**Role: Shava Selvia Ramadhani Subekti**
+**Role: Data Engineering**
 
 Sebagai Data Engineer, saya bertanggung jawab membangun _end-to-end data pipeline_ mulai dari proses pengambilan data mentah, pembersihan data, integrasi data eksternal, transformasi data menjadi format _time series_, hingga menghasilkan dataset siap pakai (_ML-ready dataset_) untuk proses forecasting dan analisis inventori pada sistem StockSight AI.
 
@@ -126,9 +126,9 @@ Sebagai hasil akhir proses Data Engineering, dihasilkan beberapa dataset yang di
 
 ---
 
-### 🤖 Machine Learning
+### 🤖 Dianwan Noven Nur Fauzian
 
-**Role: Dianwan Noven Nur Fauzian**
+**Role: Machine Learning**
 
 ## 🚀 Langkah-Langkah Pengembangan Model
 
@@ -287,9 +287,8 @@ stocksight-api/
 
 ---
 
-### 🎨 UI/UX Design & Frontend Development
-
-**Role: Rania**
+### 🎨 Rania
+**Role: UI/UX Design & Frontend Development**
 
 ## 🚀 Live Demo
 
@@ -338,7 +337,40 @@ Proyek ini dibangun menggunakan **React** dan **Vite** untuk pengalaman pengemba
 
 ---
 
-### 📋 Product Management
+### 📋 Tengku Farkhan A.S
 
-**Role: Tengku Farkhan A.S**
-_(Silakan isi detail perencanaan dan cakupan proyek di sini)_
+**Role: Product Management**
+Sebagai Project Manager, saya bertanggung jawab mengelola keseluruhan proyek StockSight AI, mulai dari perencanaan, koordinasi tim, pengawasan progres, hingga memastikan seluruh pengembangan berjalan sesuai target dan kebutuhan pengguna. Peran ini berfokus pada sinkronisasi pekerjaan antar anggota tim agar proses pengembangan data, machine learning, backend, dan frontend dapat berjalan secara terintegrasi.
+
+🎯 Tanggung Jawab Utama
+1. Project Planning & Coordination
+- Menyusun dan mengelola Project Plan serta timeline pengembangan proyek.
+- Membagi tugas dan tanggung jawab kepada setiap anggota tim sesuai perannya.
+- Memastikan seluruh aktivitas proyek berjalan sesuai target yang telah ditentukan.
+
+2. Team Management
+- Mengoordinasikan komunikasi antara Data Engineer, Machine Learning Engineer, Backend Developer, dan Frontend Developer.
+- Melakukan monitoring progres pengerjaan setiap anggota tim.
+- Membantu menyelesaikan hambatan (blocking issue) yang muncul selama pengembangan.
+
+3. Stakeholder & Advisor Communication
+- Menjadwalkan dan mengoordinasikan pertemuan dengan advisor atau dosen pembimbing.
+
+4. Documentation & Project Tracking
+- Menyusun dan memperbarui dokumen proyek seperti:
+  - Project Brief
+  - Project Plan
+  - Meeting Notes
+  - Progress Report
+  - Sprint/Task Board (Trello)
+  - Memastikan seluruh dokumentasi proyek tersimpan dengan baik dan mudah diakses oleh tim.
+5. Quality & Delivery Management
+- Memastikan integrasi antara modul Data Engineering, Machine Learning, Backend, dan Frontend berjalan dengan baik.
+- Melakukan pengawasan terhadap pencapaian milestone proyek.
+- Memastikan produk akhir siap dipresentasikan dan memenuhi tujuan proyek StockSight AI sebagai sistem forecasting dan inventory management berbasis AI untuk UMKM.
+📊 Tools yang Digunakan
+- Trello / Jira (Task Management)
+- Google Docs & Google Drive (Documentation)
+- GitHub (Version Control & Collaboration)
+- Google Meet / WhatsApp (Team Communication)
+- Figma (Review Desain dan Alur Produk)
