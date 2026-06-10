@@ -1,4 +1,4 @@
-# 🥬 StockSight AI - PJK-GM073
+# 🛒 StockSight AI - PJK-GM073
 
 **AI-Powered Demand Forecasting & Inventory Dashboard for UMKM**
 
@@ -24,15 +24,13 @@ Dataset utama yang digunakan berasal dari Kaggle:
 
 > **Note:** Dataset utama berasal dari Kaggle, sedangkan fitur hari libur diperoleh dari library `holidays` dengan kalender Hari Libur Nasional Indonesia sebagai variabel eksternal untuk mendukung forecasting.
 
----
 
 #### 1. Data Ingestion & Validation
 
 * Mengambil dataset dari Kaggle menggunakan library `kagglehub`.
 * Melakukan validasi struktur data dan pemeriksaan kualitas data awal.
 * Memastikan atribut penting seperti *Order Date*, *Sales*, dan *Category* siap digunakan dalam proses forecasting.
-
----
+  
 
 #### 2. Data Cleaning & Preprocessing
 
@@ -42,7 +40,6 @@ Dataset utama yang digunakan berasal dari Kaggle:
 * Mengonversi kolom tanggal ke format *datetime*.
 * Memastikan nilai penjualan (*Sales*) valid dan siap digunakan untuk analisis.
 
----
 
 #### 3. External Data Integration
 
@@ -75,7 +72,6 @@ Dataset utama yang digunakan berasal dari Kaggle:
   * `promo_type`
   * `is_double_date`
 
----
 
 #### 4. Time Series Transformation
 
@@ -96,7 +92,6 @@ Struktur data utama:
 * `is_promo`
 * `promo_factor`
 
----
 
 #### 5. Feature Engineering
 
@@ -126,7 +121,6 @@ Untuk meningkatkan kualitas data yang digunakan model forecasting, dilakukan beb
 * Melengkapi tanggal yang hilang menggunakan `date_range()`.
 * Mengisi tanggal tanpa transaksi dengan nilai penjualan 0 agar data time series tetap kontinu.
 
----
 
 #### 6. Outlier Analysis & Quality Control
 
@@ -140,8 +134,7 @@ Untuk meningkatkan kualitas data yang digunakan model forecasting, dilakukan beb
 
 * Menerapkan metode **IQR Capping** untuk mengurangi pengaruh nilai ekstrem.
 * Menyimpan data asli (`y_original`) dan data hasil capping (`y_capped`) untuk kebutuhan analisis dan eksperimen model.
-
----
+  
 
 #### 7. Time Series Aggregation
 
@@ -153,7 +146,6 @@ Untuk mendukung eksperimen forecasting pada berbagai granularitas waktu, dilakuk
 
 Dataset ini digunakan sebagai alternatif eksperimen model forecasting apabila performa data harian kurang optimal.
 
----
 
 #### 8. Inventory Analytics
 
@@ -177,7 +169,6 @@ ROP = (Average Daily Demand × Lead Time) + Safety Stock
 
 Perhitungan dilakukan untuk setiap kategori produk agar rekomendasi inventori lebih akurat dan relevan.
 
----
 
 #### 9. Output Dataset
 
