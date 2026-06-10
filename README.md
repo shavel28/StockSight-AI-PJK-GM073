@@ -10,119 +10,185 @@ StockSight AI adalah solusi cerdas untuk membantu UMKM mengelola stok barang sec
 
 ### 📂 Shava Selvia Ramadhani Subekti
 
-**Role: Data Engineering**
+**Role: Data Engineer**
 
-Sebagai Data Engineer, saya bertanggung jawab membangun _end-to-end data pipeline_ mulai dari proses pengambilan data mentah, pembersihan data, integrasi data eksternal, transformasi data menjadi format _time series_, hingga menghasilkan dataset siap pakai (_ML-ready dataset_) untuk proses forecasting dan analisis inventori pada sistem StockSight AI.
+Sebagai Data Engineer, saya bertanggung jawab membangun *end-to-end data pipeline* mulai dari proses pengambilan data mentah, pembersihan data, integrasi data eksternal, transformasi data menjadi format *time series*, feature engineering, analisis kualitas data, hingga menghasilkan *forecasting-ready dataset* yang digunakan oleh tim Machine Learning untuk proses forecasting dan analisis inventori pada sistem StockSight AI.
 
 #### 📊 Dataset Source
 
 Dataset utama yang digunakan berasal dari Kaggle:
 
-- **Dataset Name:** Sales Forecasting Dataset
-- **Author:** Rohit Sahoo
-- **Source:** https://www.kaggle.com/datasets/rohitsahoo/sales-forecasting
+* **Dataset Name:** Sales Forecasting Dataset
+* **Author:** Rohit Sahoo
+* **Source:** https://www.kaggle.com/datasets/rohitsahoo/sales-forecasting
 
-> **Note:**
-> Dataset utama berasal dari Kaggle, sedangkan fitur hari libur diperoleh dari library `holidays` dengan kalender Hari Libur Nasional Indonesia sebagai variabel eksternal untuk mendukung forecasting.
+> **Note:** Dataset utama berasal dari Kaggle, sedangkan fitur hari libur diperoleh dari library `holidays` dengan kalender Hari Libur Nasional Indonesia sebagai variabel eksternal untuk mendukung forecasting.
 
 ---
 
 #### 1. Data Ingestion & Validation
 
-- Mengambil dataset dari Kaggle menggunakan library `kagglehub`.
-- Melakukan pemeriksaan struktur data dan validasi atribut penting.
-- Memastikan kolom seperti _Order Date_, _Sales_, dan _Category_ dapat digunakan pada proses analisis dan forecasting.
+* Mengambil dataset dari Kaggle menggunakan library `kagglehub`.
+* Melakukan validasi struktur data dan pemeriksaan kualitas data awal.
+* Memastikan atribut penting seperti *Order Date*, *Sales*, dan *Category* siap digunakan dalam proses forecasting.
+
+---
 
 #### 2. Data Cleaning & Preprocessing
 
-- Menghapus data duplikat (_duplicate records_).
-- Menangani data kosong (_missing values_) pada atribut penting.
-- Melakukan validasi format tanggal (_date validation_).
-- Mengonversi kolom tanggal ke format _datetime_.
-- Memastikan nilai penjualan (_Sales_) valid dan siap digunakan untuk analisis.
+* Menghapus data duplikat (*duplicate records*).
+* Menangani *missing values* menggunakan metode imputasi yang sesuai.
+* Melakukan validasi format tanggal (*date validation*).
+* Mengonversi kolom tanggal ke format *datetime*.
+* Memastikan nilai penjualan (*Sales*) valid dan siap digunakan untuk analisis.
 
-#### 3. Holiday Integration
+---
 
-- Mengintegrasikan data Hari Libur Nasional Indonesia menggunakan library `holidays`.
-- Menambahkan fitur biner `is_holiday`:
-  - `1` = Hari Libur Nasional
-  - `0` = Hari Biasa
-- Fitur ini digunakan untuk membantu model mengenali pola perubahan permintaan yang dipengaruhi oleh hari libur nasional.
+#### 3. External Data Integration
+
+##### Holiday Feature
+
+* Mengintegrasikan data Hari Libur Nasional Indonesia menggunakan library `holidays`.
+* Menambahkan fitur `is_holiday`:
+
+  * `1` = Hari Libur Nasional
+  * `0` = Hari Biasa
+* Digunakan untuk membantu model mengenali pola perubahan permintaan yang dipengaruhi hari libur.
+
+##### Payday Feature
+
+* Menambahkan fitur `is_payday` berdasarkan periode awal dan akhir bulan (tanggal 1–3 dan 25–31).
+* Digunakan untuk merepresentasikan potensi peningkatan aktivitas pembelian saat periode gajian.
+
+##### Simulated Promo Feature
+
+* Menambahkan fitur promosi berbasis aturan kalender (*calendar-based promotion simulation*).
+* Mencakup:
+
+  * **Double Date Promo** (1.1, 2.2, ..., 12.12)
+  * **Payday Promo**
+  * **Weekend Promo**
+* Menghasilkan fitur:
+
+  * `is_promo`
+  * `promo_factor`
+  * `promo_type`
+  * `is_double_date`
+
+---
 
 #### 4. Time Series Transformation
 
-Melakukan transformasi data transaksi menjadi format _time series_ yang siap digunakan untuk model forecasting.
+Melakukan transformasi data transaksi menjadi format *time series* yang siap digunakan untuk forecasting.
+
 Dataset yang dihasilkan:
 
-- **Time Series Global** (total penjualan harian)
-- **Time Series per Product Category**
+* **Time Series Global** (total penjualan harian)
+* **Time Series per Product Category**
 
-Struktur data yang digunakan:
+Struktur data utama:
 
-- `ds` → Tanggal transaksi
-- `y` → Nilai penjualan
-- `is_holiday` → Indikator hari libur
+* `ds` → Tanggal transaksi
+* `y` → Nilai penjualan
+* `Category`
+* `is_holiday`
+* `is_payday`
+* `is_promo`
+* `promo_factor`
+
+---
 
 #### 5. Feature Engineering
 
-Untuk meningkatkan kualitas data yang digunakan model forecasting, dilakukan beberapa proses _feature engineering_:
+Untuk meningkatkan kualitas data yang digunakan model forecasting, dilakukan beberapa proses *feature engineering*.
 
 ##### Calendar Features
 
-- Day of Week
-- Month
-- Quarter
-- Year
-- Weekend Indicator
+* Day of Week
+* Month
+* Quarter
+* Year
+* Weekend Indicator
 
 ##### Lag Features
 
-- Lag 1 Day
-- Lag 7 Days
-- Lag 14 Days
+* Lag 1 Day
+* Lag 7 Days
+* Lag 14 Days
 
 ##### Rolling Statistics
 
-- Rolling Mean 7 Hari
-- Rolling Mean 30 Hari
+* Rolling Mean 7 Hari
+* Rolling Mean 30 Hari
 
 ##### Missing Date Handling
 
-- Melengkapi tanggal yang hilang agar data _time series_ bersifat kontinu dan konsisten.
+* Melengkapi tanggal yang hilang menggunakan `date_range()`.
+* Mengisi tanggal tanpa transaksi dengan nilai penjualan 0 agar data time series tetap kontinu.
+
+---
 
 #### 6. Outlier Analysis & Quality Control
 
-- Melakukan analisis outlier menggunakan metode **Interquartile Range (IQR)**.
-- Mengidentifikasi data penjualan yang berada di luar batas normal.
-- Menghasilkan ringkasan jumlah outlier pada setiap kategori produk.
-- Menyediakan visualisasi tren penjualan untuk membantu proses validasi kualitas data sebelum digunakan oleh model machine learning.
+##### Outlier Analysis
 
-#### 7. Inventory Analytics
+* Melakukan analisis outlier menggunakan metode **Interquartile Range (IQR)**.
+* Mengidentifikasi lonjakan penjualan ekstrem pada setiap kategori produk.
+* Menghasilkan ringkasan jumlah outlier per kategori.
 
-Melakukan analisis inventori untuk mendukung pengambilan keputusan pengelolaan stok barang.
+##### Outlier Treatment
+
+* Menerapkan metode **IQR Capping** untuk mengurangi pengaruh nilai ekstrem.
+* Menyimpan data asli (`y_original`) dan data hasil capping (`y_capped`) untuk kebutuhan analisis dan eksperimen model.
+
+---
+
+#### 7. Time Series Aggregation
+
+Untuk mendukung eksperimen forecasting pada berbagai granularitas waktu, dilakukan agregasi data menjadi:
+
+* **Daily Dataset**
+* **Weekly Dataset**
+* **Monthly Dataset**
+
+Dataset ini digunakan sebagai alternatif eksperimen model forecasting apabila performa data harian kurang optimal.
+
+---
+
+#### 8. Inventory Analytics
+
+Melakukan analisis inventori untuk mendukung pengambilan keputusan pengelolaan stok.
 
 ##### Safety Stock
 
-Menghitung stok pengaman (_Safety Stock_) untuk mengurangi risiko kehabisan stok akibat fluktuasi permintaan.
+Menghitung stok pengaman (*Safety Stock*) untuk mengurangi risiko kehabisan stok akibat fluktuasi permintaan.
+
 **Formula:**
+
 Safety Stock = Z × Standard Deviation Demand × √Lead Time
 
 ##### Reorder Point (ROP)
 
-Menentukan titik pemesanan ulang (_Reorder Point_) agar stok tetap tersedia selama proses pengiriman berlangsung.
+Menentukan titik pemesanan ulang (*Reorder Point*) agar stok tetap tersedia selama proses pengiriman berlangsung.
+
 **Formula:**
+
 ROP = (Average Daily Demand × Lead Time) + Safety Stock
 
-Perhitungan dilakukan untuk setiap kategori produk sehingga rekomendasi inventori menjadi lebih akurat dan relevan.
+Perhitungan dilakukan untuk setiap kategori produk agar rekomendasi inventori lebih akurat dan relevan.
 
-#### 8. Output Dataset
+---
 
-Sebagai hasil akhir proses Data Engineering, dihasilkan beberapa dataset yang digunakan oleh Machine Learning Engineer untuk proses pelatihan dan evaluasi model:
+#### 9. Output Dataset
 
-- `time_series_global.csv`
-- `time_series_category_feature_engineered.csv`
-- `outlier_summary.csv`
-- `inventory_summary.csv`
+Sebagai hasil akhir proses Data Engineering, dihasilkan beberapa dataset yang digunakan oleh tim Machine Learning, Backend, dan Dashboard Analytics:
+
+* `time_series_global.csv`
+* `time_series_category_feature_engineered.csv`
+* `time_series_category_weekly.csv`
+* `time_series_category_monthly.csv`
+* `outlier_summary.csv`
+* `inventory_summary.csv`
 
 ---
 
