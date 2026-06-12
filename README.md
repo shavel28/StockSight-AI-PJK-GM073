@@ -1,7 +1,3 @@
-### 🎨 Rania
-**Role: UI/UX Design & Frontend Development**
-
-## 🚀 Live Demo
 
 - **Web Application:** [https://frontend-stocksight.vercel.app/](https://frontend-stocksight.vercel.app/)
 - **UI/UX Design:** [Figma Prototype](https://www.figma.com/proto/xirMecvPVe3EiBnoErwhIr/CAPSTONE?node-id=137-905&p=f&t=flw4VGgZq187hqIF-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=137%3A905)
@@ -45,5 +41,3 @@ Proyek ini dibangun menggunakan **React** dan **Vite** untuk pengalaman pengemba
    `npm install`
 3. Jalankan server pengembangan:
    `npm run dev`
-
----
