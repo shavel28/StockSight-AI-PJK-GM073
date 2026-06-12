@@ -1,118 +1,43 @@
-# 🥬 StockSight AI - PJK-GM073
 
-**AI-Powered Demand Forecasting & Inventory Dashboard for UMKM**
+- **Web Application:** [https://frontend-stocksight.vercel.app/](https://frontend-stocksight.vercel.app/)
+- **UI/UX Design:** [Figma Prototype](https://www.figma.com/proto/xirMecvPVe3EiBnoErwhIr/CAPSTONE?node-id=137-905&p=f&t=flw4VGgZq187hqIF-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=137%3A905)
 
-StockSight AI adalah solusi cerdas untuk membantu UMKM mengelola stok barang secara otomatis menggunakan kecerdasan buatan.
+## 🛠 Role & Kontribusi
 
----
+Sebagai **Frontend Developer & UI/UX Designer**, tanggung jawab utama meliputi:
 
-### ⚙️ Backend Development
+- **UI/UX Design:** Merancang antarmuka pengguna yang bersih, responsif, dan intuitif dengan fokus pada kemudahan navigasi bagi analis data.
+- **Frontend Development:** Mengimplementasikan desain ke dalam _React.js_ dengan dukungan _Tailwind CSS_ untuk styling dan _Chart.js_ untuk visualisasi data yang kompleks.
+- **Data Visualization:** Membangun dashboard interaktif yang mampu menerjemahkan output model AI ke dalam bentuk grafik agar mudah dipahami oleh pengguna non-teknis.
 
-**Role: Arizal**
+## 📋 Fitur Dashboard (Navigasi)
 
-Mengembangkan API backend menggunakan **FastAPI**, **PostgreSQL**, dan **SQLAlchemy** untuk melayani data pipeline, modul peramalan, dan manajemen inventori.
+1.  **Overview:** Ringkasan KPI performa (rata-rata permintaan, deteksi anomali), visualisasi _Forecasting_ AI, dan perbandingan batas stok.
+2.  **Inventory:** Manajemen inventaris real-time, menampilkan status stok (Aman/Rendah/Kritis) berdasarkan rekomendasi AI.
+3.  **Data Pipeline:** Pemantauan proses _preprocessing_ data, log transformasi, dan integrasi dataset eksternal.
+4.  **Prediksi Baru:** Simulasi prediksi interaktif dengan opsi pemilihan model (Prophet/ARIMA/LSTM) dan pengaturan horizon waktu.
+5.  **Config AI:** Pengaturan _tuning_ parameter model AI untuk menyesuaikan sensitivitas tren data.
 
-#### Stack Teknologi
+## 💻 Tech Stack & Dokumentasi Teknis
 
-- **FastAPI** (Web Framework & Dokumentasi Interaktif)
-- **PostgreSQL** dengan **asyncpg** (Database Relasional Asinkron)
-- **Prophet & ARIMA** (Forecasting Engine)
-- **JWT & Bcrypt** (Sistem Autentikasi Keamanan)
+Proyek ini dibangun menggunakan **React** dan **Vite** untuk pengalaman pengembangan yang cepat dan efisien.
 
-#### Struktur Project
+- **Framework:** React.js (Vite)
+- **Styling:** Tailwind CSS
+- **Charts:** Chart.js & react-chartjs-2
+- **Deployment:** Vercel
 
-```
-stocksight-api/
-├── app/
-│   ├── main.py                  # Entry point FastAPI
-│   ├── api/v1/
-│   │   ├── router.py            # Agregator semua router
-│   │   └── endpoints/
-│   │       ├── auth.py          # POST /register, /login, GET /me
-│   │       ├── uploads.py       # Upload & pipeline CSV
-│   │       ├── products.py      # CRUD produk & sales
-│   │       ├── forecasts.py     # Trigger & ambil hasil ML
-│   │       └── inventory_dashboard.py  # Reorder, alert, summary
-│   ├── core/
-│   │   ├── config.py            # Settings dari .env
-│   │   └── security.py          # JWT & password hashing
-│   ├── db/
-│   │   └── session.py           # Async SQLAlchemy engine
-│   ├── models/
-│   │   └── models.py            # ORM: User, Upload, Product, ...
-│   ├── schemas/
-│   │   └── schemas.py           # Pydantic request/response
-│   └── services/
-│       ├── user_service.py      # DB ops untuk user
-│       ├── pipeline_service.py  # Validasi & ingest CSV
-│       ├── forecast_service.py  # Prophet & ARIMA engine
-│       └── inventory_service.py # Reorder point & alert
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+### Informasi Teknis:
 
-#### Setup & Menjalankan API Backend
+- **Build Tool:** Template ini menggunakan `@vitejs/plugin-react` yang memanfaatkan _Oxc_ untuk kompilasi yang lebih cepat.
+- **React Compiler:** Saat ini tidak diaktifkan untuk menjaga performa _build_ dan _dev_. Jika dibutuhkan optimasi lebih lanjut di masa depan, dapat diaktifkan melalui panduan resmi React.
+- **Rekomendasi:** Untuk pengembangan skala besar, disarankan menggunakan _TypeScript_ with `typescript-eslint` untuk menjaga kualitas kode dan keamanan tipe data.
 
-1. **Clone & install dependencies**
-   ```bash
-   cd stocksight-api
-   python -m venv venv
-   source venv/bin/activate        # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. **Konfigurasi environment**
-   ```bash
-   cp .env
-   # Edit .env: isi DATABASE_URL dan SECRET_KEY
-   ```
-3. **Jalankan API**
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-4. **Buka dokumentasi interaktif**
-   - Swagger UI : http://localhost:8000/docs
-   - ReDoc : http://localhost:8000/redoc
+## ⚙️ Cara Menjalankan Lokal
 
-#### Alur Penggunaan API
-
-```
-1. POST /api/v1/auth/register   → buat akun
-2. POST /api/v1/auth/login      → dapat JWT token
-3. POST /api/v1/uploads         → upload CSV penjualan (async pipeline)
-4. GET  /api/v1/uploads/:id     → cek status pipeline (pending/done/error)
-5. GET  /api/v1/products        → lihat produk hasil parsing
-6. POST /api/v1/forecasts       → trigger forecasting Prophet/ARIMA (async)
-7. GET  /api/v1/forecasts/:id/details → ambil prediksi harian
-8. GET  /api/v1/inventory/reorder    → reorder point & safety stock
-9. GET  /api/v1/dashboard/summary    → ringkasan untuk dashboard
-```
-
-#### Format CSV yang Didukung
-
-| Kolom           | Tipe       | Wajib |
-| :-------------- | :--------- | :---- |
-| `product_name`  | string     | Ya    |
-| `sale_date`     | YYYY-MM-DD | Ya    |
-| `quantity_sold` | integer    | Ya    |
-| `revenue`       | float      | Tidak |
-| `category`      | string     | Tidak |
-| `region`        | string     | Tidak |
-
-#### Bukti Testing Endpoints API
-
-Seluruh endpoint telah diuji menggunakan Postman untuk memastikan fungsionalitas API berjalan dengan baik.
-
-| Feature            | Endpoint                    | Status |
-| ------------------ | --------------------------- | ------ |
-| Authentication     | POST /auth/register         | ✅     |
-| Authentication     | POST /auth/login            | ✅     |
-| CSV Upload         | POST /uploads               | ✅     |
-| Product Data       | GET /products               | ✅     |
-| Forecasting        | POST /forecasts             | ✅     |
-| Forecast Result    | GET /forecasts/{id}/details | ✅     |
-| Inventory Analysis | GET /inventory/reorder      | ✅     |
-| Dashboard Summary  | GET /dashboard/summary      | ✅     |
-
-📄 Dokumentasi lengkap pengujian dapat dilihat pada:
-[Backend API Testing](docs/Backend_API_Testing.pdf)
+1. Clone repositori:
+   `git clone https://github.com/aryuzura/stocksight-frontend.git`
+2. Install dependencies:
+   `npm install`
+3. Jalankan server pengembangan:
+   `npm run dev`
