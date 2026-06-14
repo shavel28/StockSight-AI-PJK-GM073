@@ -153,8 +153,8 @@ Alur penggunaan umum dari ujung-ke-ujung (end-to-end) bagi pengguna baru:
 2.  POST /api/v1/auth/login             → Dapatkan token JWT
 3.  POST /api/v1/uploads                → Unggah CSV (Format mentah atau ekspor Colab)
 4.  GET  /api/v1/uploads/:id            → Polling status pipeline (pending → processing → done)
-5.  GET  /api/v1/products               → Dapatkan daftar produk dan ambil product_id
-6.  POST /api/v1/forecasts              → Trigger peramalan Prophet atau ARIMA
+5.  GET  /api/v1/products               → Dapatkan daftar produk
+6.  POST /api/v1/forecasts              → Trigger peramalan Prophet atau ARIMA skala global (menggunakan upload_id)
 7.  GET  /api/v1/forecasts/:id          → Polling status peramalan
 8.  GET  /api/v1/forecasts/:id/details  → Ambil detail proyeksi harian beserta MAPE & RMSE
 9.  GET  /api/v1/inventory/reorder      → Periksa Safety Stock dan Reorder Point produk
@@ -190,6 +190,8 @@ Jika file mengandung struktur kolom khas Colab, backend akan memetakan kolom ter
 | `Category` | `product_name` |
 | `y` / `y_capped` / `y_original` | `quantity_sold` |
 | `is_holiday` / `is_payday` | Dibaca langsung, tidak perlu dihitung ulang |
+
+*Catatan: Jika kolom `category` atau `product_name` tidak ditemukan (seperti pada berkas deret waktu global murni), backend secara otomatis mendefinisikan nama produk default sebagai `"Global"`.*
 
 ---
 
@@ -233,7 +235,7 @@ pipeline_service.py
 
 ```json
 {
-  "product_id": "uuid-di-sini",
+  "upload_id": "uuid-di-sini",
   "model": "prophet",
   "horizon_days": 30,
   "include_holidays": true
