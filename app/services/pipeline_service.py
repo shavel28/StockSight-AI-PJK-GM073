@@ -19,7 +19,8 @@ async def save_upload_file(file: UploadFile, user_id: str) -> tuple[str, str]:
     upload_dir = Path(settings.UPLOAD_DIR) / user_id
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    dest = upload_dir / file.filename
+    filename = os.path.basename(file.filename)
+    dest = upload_dir / filename
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
@@ -28,7 +29,7 @@ async def save_upload_file(file: UploadFile, user_id: str) -> tuple[str, str]:
         dest.unlink()
         raise HTTPException(400, f"File terlalu besar. Maksimal {settings.MAX_UPLOAD_SIZE_MB}MB")
 
-    return file.filename, str(dest)
+    return filename, str(dest)
 
 
 def validate_csv(file_path: str) -> pd.DataFrame:
