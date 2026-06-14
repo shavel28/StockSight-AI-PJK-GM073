@@ -7,38 +7,39 @@ from datetime import date
 import holidays as hol
 import numpy as np
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import Forecast, ForecastDetail, SalesRecord
+from app.models.models import Forecast, ForecastDetail, SalesRecord, Product
 
 
-# ── Helper: ambil data sales dari DB ─────────────────
-async def _get_sales_df(db: AsyncSession, product_id: str) -> pd.DataFrame:
+# ── Helper: ambil data sales global per upload dari DB ──────────
+async def _get_global_sales_df(db: AsyncSession, upload_id: str) -> pd.DataFrame:
     result = await db.execute(
-        select(SalesRecord)
-        .where(SalesRecord.product_id == product_id)
+        select(
+            SalesRecord.sale_date,
+            func.sum(SalesRecord.quantity_sold).label("quantity_sold"),
+            func.max(SalesRecord.is_holiday).label("is_holiday"),
+            func.max(SalesRecord.is_payday).label("is_payday"),
+        )
+        .join(Product, SalesRecord.product_id == Product.id)
+        .where(Product.upload_id == upload_id)
+        .group_by(SalesRecord.sale_date)
         .order_by(SalesRecord.sale_date)
     )
-    records = result.scalars().all()
+    records = result.fetchall()
 
     if not records:
         return pd.DataFrame()
 
     df = pd.DataFrame([{
-        "ds": r.sale_date,
-        "y": r.quantity_sold,
-        "is_holiday": r.is_holiday if r.is_holiday is not None else 0,
-        "is_payday": r.is_payday if r.is_payday is not None else 0,
+        "ds": r[0],
+        "y": r[1],
+        "is_holiday": r[2] if r[2] is not None else 0,
+        "is_payday": r[3] if r[3] is not None else 0,
     } for r in records])
 
     df["ds"] = pd.to_datetime(df["ds"])
-    # Agregasi harian (jika ada lebih dari 1 transaksi per hari)
-    df = df.groupby("ds", as_index=False).agg({
-        "y": "sum",
-        "is_holiday": "max",
-        "is_payday": "max",
-    })
     return df
 
 
@@ -59,7 +60,10 @@ def _evaluate(actual: np.ndarray, predicted: np.ndarray) -> tuple[float, float]:
 
 # ── Prophet ───────────────────────────────────────────
 def _run_prophet(df: pd.DataFrame, horizon: int, include_holidays: bool) -> dict:
-    from prophet import Prophet
+    from app.services.model_registry import get_prophet_model
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     # Lengkapi kolom jika tidak ada
     if "is_holiday" not in df.columns:
@@ -75,56 +79,78 @@ def _run_prophet(df: pd.DataFrame, horizon: int, include_holidays: bool) -> dict
     train = df.iloc[: -min(30, len(df) // 5)].copy()
     val = df.iloc[len(train):].copy()
 
-    model = Prophet(
-        yearly_seasonality=True,
-        weekly_seasonality=True,
-        daily_seasonality=False,
-        interval_width=0.80,
-    )
+    # Ambil model pre-trained dari registry
+    model = get_prophet_model()
+    is_pretrained = model is not None
 
-    has_holiday = include_holidays
-    has_payday = True
+    if is_pretrained:
+        logger.info("Menggunakan model Prophet pra-latih (Notebooks/prophet_model.json) dari registry.")
+    else:
+        logger.info("Model pra-latih tidak tersedia. Melatih model Prophet baru dari awal.")
+        from prophet import Prophet
+        model = Prophet(
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            daily_seasonality=False,
+            interval_width=0.80,
+        )
+        has_holiday = include_holidays
+        has_payday = True
 
-    if has_holiday:
-        model.add_regressor("is_holiday")
-    if has_payday:
-        model.add_regressor("is_payday")
+        if has_holiday:
+            model.add_regressor("is_holiday")
+        if has_payday:
+            model.add_regressor("is_payday")
 
-    model.fit(train)
+        model.fit(train)
 
     # Evaluasi pada validation set
     if len(val) > 0:
-        val_future = val[["ds", "is_holiday", "is_payday"]].copy()
+        val_future = val[["ds"]].copy()
+        # Secara dinamis masukkan regressor yang diharapkan oleh model (misal: is_holiday)
+        for regressor in model.extra_regressors.keys():
+            if regressor in val.columns:
+                val_future[regressor] = val[regressor].fillna(0).astype(int)
+            else:
+                val_future[regressor] = 0
+        
         val_pred = model.predict(val_future)
         mape, rmse = _evaluate(val["y"].values, val_pred["yhat"].values)
     else:
         mape, rmse = None, None
 
-    # Forecast ke depan
-    future = model.make_future_dataframe(periods=horizon)
-    # Gabungkan dengan nilai historis dari df
-    future = future.merge(df[["ds", "is_holiday", "is_payday"]], on="ds", how="left")
+    # Forecast ke depan mulai dari tanggal terakhir pada data sales
+    last_date = df["ds"].max()
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=horizon, freq="D")
+    future = pd.DataFrame({"ds": future_dates})
 
-    # Hitung dinamis untuk tanggal di masa depan (yang is_holiday/is_payday bernilai NaN)
-    nan_mask = future["is_holiday"].isna() | future["is_payday"].isna()
-    if nan_mask.any():
-        future_dates = future.loc[nan_mask, "ds"]
-        years = future_dates.dt.year.dropna().unique().tolist()
-        if years:
-            id_hol = hol.Indonesia(years=years)
-            holiday_dates = set(id_hol.keys())
-            future.loc[nan_mask, "is_holiday"] = future_dates.dt.date.isin(holiday_dates).astype(int)
-        else:
-            future.loc[nan_mask, "is_holiday"] = 0
+    # Hitung dinamis untuk tanggal di masa depan
+    for regressor in model.extra_regressors.keys():
+        future[regressor] = np.nan
+        nan_mask = future[regressor].isna()
+        if nan_mask.any():
+            future_dates_series = future.loc[nan_mask, "ds"]
+            
+            if regressor == "is_holiday":
+                years = future_dates_series.dt.year.dropna().unique().tolist()
+                if years:
+                    id_hol = hol.Indonesia(years=years)
+                    holiday_dates = set(id_hol.keys())
+                    future.loc[nan_mask, "is_holiday"] = future_dates_series.dt.date.isin(holiday_dates).astype(int)
+                else:
+                    future.loc[nan_mask, "is_holiday"] = 0
+                    
+            elif regressor == "is_payday":
+                day = future_dates_series.dt.day
+                future.loc[nan_mask, "is_payday"] = ((day <= 5) | (day >= 25)).astype(int)
+                
+            else:
+                future.loc[nan_mask, regressor] = 0
 
-        day = future_dates.dt.day
-        future.loc[nan_mask, "is_payday"] = ((day <= 5) | (day >= 25)).astype(int)
-
-    future["is_holiday"] = future["is_holiday"].fillna(0).astype(int)
-    future["is_payday"] = future["is_payday"].fillna(0).astype(int)
+        future[regressor] = future[regressor].fillna(0).astype(int)
 
     forecast = model.predict(future)
-    future_only = forecast[forecast["ds"] > df["ds"].max()].copy()
+    future_only = forecast.copy()
 
     details = [
         {
@@ -217,7 +243,7 @@ def _run_arima(df: pd.DataFrame, horizon: int) -> dict:
 # ── Entry point (background task) ─────────────────────
 async def run_forecast(
     forecast_id: str,
-    product_id: str,
+    upload_id: str,
     horizon_days: int,
     model_name: str,
     include_holidays: bool,
@@ -233,7 +259,7 @@ async def run_forecast(
             forecast.status = "running"
             await db.commit()
 
-            df = await _get_sales_df(db, product_id)
+            df = await _get_global_sales_df(db, upload_id)
             if df.empty or len(df) < 10:
                 raise ValueError("Data penjualan terlalu sedikit untuk forecasting (minimal 10 hari)")
 

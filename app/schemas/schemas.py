@@ -75,7 +75,7 @@ class SalesRecordOut(BaseModel):
 
 # ── Forecast ──────────────────────────────────────────
 class ForecastRequest(BaseModel):
-    product_id: str
+    upload_id: str
     horizon_days: int = 30          # 30 | 60 | 90
     model: str = "prophet"          # prophet | arima
     include_holidays: bool = True
@@ -83,7 +83,8 @@ class ForecastRequest(BaseModel):
 
 class ForecastOut(BaseModel):
     id: str
-    product_id: str
+    upload_id: Optional[str] = None
+    product_id: Optional[str] = None
     model_used: str
     horizon_days: int
     mape: Optional[float]

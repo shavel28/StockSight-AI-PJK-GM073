@@ -101,7 +101,7 @@ async def get_summary(
     # Rata-rata MAPE
     mape_res = await db.execute(
         select(func.avg(Forecast.mape))
-        .join(Product).join(Upload)
+        .join(Upload, Forecast.upload_id == Upload.id)
         .where(Upload.user_id == current_user.id, Forecast.status == "done")
     )
     avg_mape = mape_res.scalar()

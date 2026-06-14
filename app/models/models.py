@@ -41,6 +41,7 @@ class Upload(Base):
 
     user = relationship("User", back_populates="uploads")
     products = relationship("Product", back_populates="upload", cascade="all, delete")
+    forecasts = relationship("Forecast", back_populates="upload", cascade="all, delete")
 
 
 class Product(Base):
@@ -78,14 +79,16 @@ class Forecast(Base):
     __tablename__ = "forecasts"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
-    product_id = Column(UUID(as_uuid=False), ForeignKey("products.id", ondelete="CASCADE"))
+    upload_id = Column(UUID(as_uuid=False), ForeignKey("uploads.id", ondelete="CASCADE"), nullable=True)
+    product_id = Column(UUID(as_uuid=False), ForeignKey("products.id", ondelete="CASCADE"), nullable=True)
     model_used = Column(String(20), nullable=False)  # prophet | arima
     horizon_days = Column(Integer, nullable=False)   # 30 | 60 | 90
     mape = Column(Float, nullable=True)
     rmse = Column(Float, nullable=True)
-    status = Column(String(20), default="pending")   # pending | running | done | error
+    status = Column(String(20), default="running")   # pending | running | done | error
     generated_at = Column(DateTime, default=datetime.utcnow)
 
+    upload = relationship("Upload", back_populates="forecasts")
     product = relationship("Product", back_populates="forecasts")
     details = relationship("ForecastDetail", back_populates="forecast", cascade="all, delete")
 

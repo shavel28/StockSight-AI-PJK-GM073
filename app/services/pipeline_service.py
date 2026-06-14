@@ -46,6 +46,9 @@ def validate_csv(file_path: str) -> pd.DataFrame:
         df["sale_date"] = df["ds"]
     if "category" in df.columns and "product_name" not in df.columns:
         df["product_name"] = df["category"]
+    elif "product_name" not in df.columns:
+        df["product_name"] = "Global"
+        
     if "y" in df.columns and "quantity_sold" not in df.columns:
         df["quantity_sold"] = df["y"]
     elif "y_capped" in df.columns and "quantity_sold" not in df.columns:

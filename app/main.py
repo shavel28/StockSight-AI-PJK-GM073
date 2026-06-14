@@ -18,7 +18,15 @@ async def lifespan(app: FastAPI):
         # Pastikan kolom is_holiday dan is_payday ada di tabel sales_records
         await conn.execute(text("ALTER TABLE sales_records ADD COLUMN IF NOT EXISTS is_holiday INTEGER DEFAULT 0;"))
         await conn.execute(text("ALTER TABLE sales_records ADD COLUMN IF NOT EXISTS is_payday INTEGER DEFAULT 0;"))
+        # Pastikan kolom upload_id ada di tabel forecasts dan product_id boleh NULL (untuk peramalan global)
+        await conn.execute(text("ALTER TABLE forecasts ADD COLUMN IF NOT EXISTS upload_id UUID;"))
+        await conn.execute(text("ALTER TABLE forecasts ALTER COLUMN product_id DROP NOT NULL;"))
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    
+    # Preload model Prophet pra-latih saat startup
+    from app.services.model_registry import load_prophet_model
+    load_prophet_model()
+    
     yield
 
 

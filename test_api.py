@@ -4,7 +4,7 @@ import sys
 import os
 import random
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 
 def test_api():
     client = httpx.Client(base_url=BASE_URL, timeout=30.0)
@@ -118,7 +118,7 @@ def test_api():
         
     print("\n=== 10. Trigger Forecasting (Prophet) ===")
     forecast_payload = {
-        "product_id": target_product_id,
+        "upload_id": upload_id,
         "model": "prophet",
         "horizon_days": 30,
         "include_holidays": True
@@ -184,6 +184,22 @@ def test_api():
             print(f"  {idx+1}. {tp['product_name']} ({tp['category']}) - Total Terjual: {tp['total_sold']}")
     else:
         print(f"Gagal mengambil top products: {r.status_code} - {r.text}")
+
+    print("\n=== 16. Mengambil Informasi Model Prophet Pra-latih ===")
+    r = client.get("/api/v1/forecasts/model/info")
+    if r.status_code == 200:
+        print(f"Informasi Model: {r.json()}")
+    else:
+        print(f"Gagal mengambil info model: {r.status_code} - {r.text}")
+        sys.exit(1)
+
+    print("\n=== 17. Memuat Ulang Model Prophet Pra-latih ===")
+    r = client.post("/api/v1/forecasts/model/reload")
+    if r.status_code == 200:
+        print(f"Hasil Reload Model: {r.json()}")
+    else:
+        print(f"Gagal reload model: {r.status_code} - {r.text}")
+        sys.exit(1)
 
     print("\n=============================================")
     print(" SELURUH PENGUJIAN ENDPOINT SELESAI & BERHASIL!")
