@@ -66,6 +66,8 @@ class SalesRecordOut(BaseModel):
     sale_date: date
     quantity_sold: int
     revenue: Optional[float]
+    is_holiday: Optional[int] = 0
+    is_payday: Optional[int] = 0
 
     class Config:
         from_attributes = True

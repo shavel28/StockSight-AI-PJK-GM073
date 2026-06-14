@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
+import holidays as hol
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +40,18 @@ def validate_csv(file_path: str) -> pd.DataFrame:
 
     df.columns = df.columns.str.lower().str.strip().str.replace(" ", "_")
 
+    # Adaptasi format ekspor Google Colab (ds -> sale_date, category -> product_name, y -> quantity_sold)
+    if "ds" in df.columns and "sale_date" not in df.columns:
+        df["sale_date"] = df["ds"]
+    if "category" in df.columns and "product_name" not in df.columns:
+        df["product_name"] = df["category"]
+    if "y" in df.columns and "quantity_sold" not in df.columns:
+        df["quantity_sold"] = df["y"]
+    elif "y_capped" in df.columns and "quantity_sold" not in df.columns:
+        df["quantity_sold"] = df["y_capped"]
+    elif "y_original" in df.columns and "quantity_sold" not in df.columns:
+        df["quantity_sold"] = df["y_original"]
+
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(f"Kolom wajib tidak ditemukan: {missing}")
@@ -70,6 +83,49 @@ def validate_csv(file_path: str) -> pd.DataFrame:
     return df
 
 
+def enrich_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Tambahkan fitur dari DE pipeline ke dalam dataframe."""
+    # 1. Calendar features
+    df["day_of_week"] = pd.to_datetime(df["sale_date"]).dt.dayofweek
+    df["month"] = pd.to_datetime(df["sale_date"]).dt.month
+    df["is_weekend"] = df["day_of_week"].isin([5, 6]).astype(int)
+
+    # 2. Holiday Indonesia
+    if "is_holiday" not in df.columns:
+        years = pd.to_datetime(df["sale_date"]).dt.year.dropna().unique().tolist()
+        if years:
+            id_holidays = hol.Indonesia(years=years)
+            holiday_dates = set(id_holidays.keys())
+            df["is_holiday"] = pd.to_datetime(df["sale_date"]).dt.date.isin(holiday_dates).astype(int)
+        else:
+            df["is_holiday"] = 0
+    else:
+        df["is_holiday"] = df["is_holiday"].fillna(0).astype(int)
+
+    # 3. Payday (awal & akhir bulan)
+    if "is_payday" not in df.columns:
+        day = pd.to_datetime(df["sale_date"]).dt.day
+        df["is_payday"] = ((day <= 5) | (day >= 25)).astype(int)
+    else:
+        df["is_payday"] = df["is_payday"].fillna(0).astype(int)
+
+    # 4. Outlier capping per product (IQR)
+    df["quantity_sold_raw"] = df["quantity_sold"]
+
+    def cap_product_outliers(group):
+        q1 = group["quantity_sold"].quantile(0.25)
+        q3 = group["quantity_sold"].quantile(0.75)
+        iqr = q3 - q1
+        upper = q3 + 1.5 * iqr
+        group["quantity_sold"] = group["quantity_sold"].clip(upper=upper)
+        return group
+
+    # Terapkan outlier capping per product_name
+    df = df.groupby("product_name", group_keys=False).apply(cap_product_outliers)
+
+    return df
+
+
 async def process_upload(upload_id: str, file_path: str):
     """Pipeline utama: validasi → ingest ke DB. Dipanggil sebagai background task."""
     from app.db.session import AsyncSessionLocal
@@ -84,6 +140,7 @@ async def process_upload(upload_id: str, file_path: str):
             await db.commit()
 
             df = validate_csv(file_path)
+            df = enrich_features(df)
 
             # Kelompokkan berdasarkan produk unik
             product_cols = ["product_name", "category", "region"]
@@ -110,8 +167,10 @@ async def process_upload(upload_id: str, file_path: str):
                 records.append(SalesRecord(
                     product_id=pid,
                     sale_date=row["sale_date"],
-                    quantity_sold=int(row["quantity_sold"]),
+                    quantity_sold=int(round(row["quantity_sold"])),
                     revenue=float(row["revenue"]) if pd.notna(row.get("revenue")) else None,
+                    is_holiday=int(row["is_holiday"]),
+                    is_payday=int(row["is_payday"]),
                 ))
 
             db.add_all(records)

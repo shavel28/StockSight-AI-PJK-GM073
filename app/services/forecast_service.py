@@ -28,11 +28,17 @@ async def _get_sales_df(db: AsyncSession, product_id: str) -> pd.DataFrame:
     df = pd.DataFrame([{
         "ds": r.sale_date,
         "y": r.quantity_sold,
+        "is_holiday": r.is_holiday if r.is_holiday is not None else 0,
+        "is_payday": r.is_payday if r.is_payday is not None else 0,
     } for r in records])
 
     df["ds"] = pd.to_datetime(df["ds"])
     # Agregasi harian (jika ada lebih dari 1 transaksi per hari)
-    df = df.groupby("ds", as_index=False)["y"].sum()
+    df = df.groupby("ds", as_index=False).agg({
+        "y": "sum",
+        "is_holiday": "max",
+        "is_payday": "max",
+    })
     return df
 
 
@@ -55,27 +61,40 @@ def _evaluate(actual: np.ndarray, predicted: np.ndarray) -> tuple[float, float]:
 def _run_prophet(df: pd.DataFrame, horizon: int, include_holidays: bool) -> dict:
     from prophet import Prophet
 
-    train = df.iloc[: -min(30, len(df) // 5)]
-    val = df.iloc[len(train):]
+    # Lengkapi kolom jika tidak ada
+    if "is_holiday" not in df.columns:
+        df["is_holiday"] = 0
+    else:
+        df["is_holiday"] = df["is_holiday"].fillna(0).astype(int)
 
-    holiday_df = None
-    if include_holidays:
-        years = sorted(df["ds"].dt.year.unique().tolist())
-        holiday_df = _get_id_holidays(years + [max(years) + 1])
+    if "is_payday" not in df.columns:
+        df["is_payday"] = 0
+    else:
+        df["is_payday"] = df["is_payday"].fillna(0).astype(int)
+
+    train = df.iloc[: -min(30, len(df) // 5)].copy()
+    val = df.iloc[len(train):].copy()
 
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=False,
-        holidays=holiday_df,
         interval_width=0.80,
     )
+
+    has_holiday = include_holidays
+    has_payday = True
+
+    if has_holiday:
+        model.add_regressor("is_holiday")
+    if has_payday:
+        model.add_regressor("is_payday")
+
     model.fit(train)
 
     # Evaluasi pada validation set
     if len(val) > 0:
-        val_future = model.make_future_dataframe(periods=0)
-        val_future = val_future[val_future["ds"].isin(val["ds"])]
+        val_future = val[["ds", "is_holiday", "is_payday"]].copy()
         val_pred = model.predict(val_future)
         mape, rmse = _evaluate(val["y"].values, val_pred["yhat"].values)
     else:
@@ -83,6 +102,27 @@ def _run_prophet(df: pd.DataFrame, horizon: int, include_holidays: bool) -> dict
 
     # Forecast ke depan
     future = model.make_future_dataframe(periods=horizon)
+    # Gabungkan dengan nilai historis dari df
+    future = future.merge(df[["ds", "is_holiday", "is_payday"]], on="ds", how="left")
+
+    # Hitung dinamis untuk tanggal di masa depan (yang is_holiday/is_payday bernilai NaN)
+    nan_mask = future["is_holiday"].isna() | future["is_payday"].isna()
+    if nan_mask.any():
+        future_dates = future.loc[nan_mask, "ds"]
+        years = future_dates.dt.year.dropna().unique().tolist()
+        if years:
+            id_hol = hol.Indonesia(years=years)
+            holiday_dates = set(id_hol.keys())
+            future.loc[nan_mask, "is_holiday"] = future_dates.dt.date.isin(holiday_dates).astype(int)
+        else:
+            future.loc[nan_mask, "is_holiday"] = 0
+
+        day = future_dates.dt.day
+        future.loc[nan_mask, "is_payday"] = ((day <= 5) | (day >= 25)).astype(int)
+
+    future["is_holiday"] = future["is_holiday"].fillna(0).astype(int)
+    future["is_payday"] = future["is_payday"].fillna(0).astype(int)
+
     forecast = model.predict(future)
     future_only = forecast[forecast["ds"] > df["ds"].max()].copy()
 
@@ -102,22 +142,66 @@ def _run_prophet(df: pd.DataFrame, horizon: int, include_holidays: bool) -> dict
 def _run_arima(df: pd.DataFrame, horizon: int) -> dict:
     from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-    series = df.set_index("ds")["y"].asfreq("D").fillna(0)
-    train = series.iloc[: -min(30, len(series) // 5)]
-    val = series.iloc[len(train):]
+    # Tentukan apakah fitur eksternal ada
+    has_exog = "is_holiday" in df.columns and "is_payday" in df.columns
+    exog_cols = ["is_holiday", "is_payday"]
 
-    model = SARIMAX(train, order=(1, 1, 1), seasonal_order=(1, 1, 0, 7),
-                    enforce_stationarity=False, enforce_invertibility=False)
+    # Align ke frekuensi harian (D) dan isi nilai kosong
+    df_aligned = df.set_index("ds").asfreq("D").fillna({
+        "y": 0,
+        "is_holiday": 0,
+        "is_payday": 0
+    })
+
+    series = df_aligned["y"]
+    exog = df_aligned[exog_cols] if has_exog else None
+
+    # Pembagian data latih dan validasi
+    train_len = len(series) - min(30, len(series) // 5)
+    train_y = series.iloc[:train_len]
+    val_y = series.iloc[train_len:]
+
+    train_exog = exog.iloc[:train_len] if has_exog else None
+    val_exog = exog.iloc[train_len:] if has_exog else None
+
+    model = SARIMAX(
+        train_y,
+        exog=train_exog,
+        order=(1, 1, 1),
+        seasonal_order=(1, 1, 0, 7),
+        enforce_stationarity=False,
+        enforce_invertibility=False
+    )
     result = model.fit(disp=False)
 
-    if len(val) > 0:
-        val_pred = result.predict(start=len(train), end=len(train) + len(val) - 1)
-        mape, rmse = _evaluate(val.values, val_pred.values)
+    # Evaluasi dengan data validasi
+    if len(val_y) > 0:
+        val_pred = result.predict(start=train_len, end=len(series) - 1, exog=val_exog)
+        mape, rmse = _evaluate(val_y.values, val_pred.values)
     else:
         mape, rmse = None, None
 
-    forecast = result.forecast(steps=horizon)
-    conf = result.get_forecast(steps=horizon).conf_int(alpha=0.20)
+    # Buat indeks tanggal masa depan
+    last_date = series.index.max()
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=horizon, freq="D")
+
+    # Siapkan exog untuk prediksi masa depan secara dinamis
+    if has_exog:
+        future_exog = pd.DataFrame(index=future_dates)
+        years = future_dates.year.dropna().unique().tolist()
+        if years:
+            id_hol = hol.Indonesia(years=years)
+            holiday_dates = set(id_hol.keys())
+            future_exog["is_holiday"] = pd.Index(future_exog.index.date).isin(holiday_dates).astype(int)
+        else:
+            future_exog["is_holiday"] = 0
+
+        future_exog["is_payday"] = ((future_exog.index.day <= 5) | (future_exog.index.day >= 25)).astype(int)
+    else:
+        future_exog = None
+
+    forecast = result.forecast(steps=horizon, exog=future_exog)
+    conf = result.get_forecast(steps=horizon, exog=future_exog).conf_int(alpha=0.20)
 
     details = []
     for i, (idx, val_f) in enumerate(forecast.items()):

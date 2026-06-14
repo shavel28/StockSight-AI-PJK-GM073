@@ -74,3 +74,4 @@ async def delete_upload(
     if not upload or upload.user_id != current_user.id:
         raise HTTPException(404, "Upload tidak ditemukan")
     await db.delete(upload)
+    await db.commit()

@@ -68,6 +68,8 @@ class SalesRecord(Base):
     sale_date = Column(Date, nullable=False)
     quantity_sold = Column(Integer, nullable=False)
     revenue = Column(Float, nullable=True)
+    is_holiday = Column(Integer, nullable=True, default=0)
+    is_payday = Column(Integer, nullable=True, default=0)
 
     product = relationship("Product", back_populates="sales_records")
 

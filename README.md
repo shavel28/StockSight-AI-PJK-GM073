@@ -1,94 +1,241 @@
-### ⚙️ Backend Development
+# StockSight AI — Backend API
 
-**Role: Arizal**
+> **PJK-GM073** · Peramalan Deret Waktu (*Time Series Forecasting*) & Kecerdasan Inventori untuk UMKM Indonesia
 
-Mengembangkan API backend menggunakan **FastAPI**, **PostgreSQL**, dan **SQLAlchemy** untuk melayani data pipeline, modul peramalan, dan manajemen inventori.
+Layanan backend untuk StockSight AI, dibangun menggunakan **FastAPI** dan **PostgreSQL**. Backend ini menangani seluruh alur mulai dari pengunggahan (*ingestion*) CSV mentah hingga peramalan permintaan bertenaga ML — termasuk pengayaan Data Engineering (DE) otomatis (deteksi hari libur, penandaan hari gajian, pembatasan pencilan) dan dua mesin peramalan: **Prophet** dan **ARIMA**.
 
-#### Stack Teknologi
+---
 
-- **FastAPI** (Web Framework & Dokumentasi Interaktif)
-- **PostgreSQL** dengan **asyncpg** (Database Relasional Asinkron)
-- **Prophet & ARIMA** (Forecasting Engine)
-- **JWT & Bcrypt** (Sistem Autentikasi Keamanan)
+## Daftar Isi
 
-#### Struktur Project
+- [Fitur Utama](#fitur-utama)
+- [Stack Teknologi](#stack-teknologi)
+- [Struktur Proyek](#struktur-proyek)
+- [Langkah Memulai](#langkah-memulai)
+- [Alur Penggunaan API](#alur-penggunaan-api)
+- [Format CSV yang Didukung](#format-csv-yang-didukung)
+- [Integrasi DE + ML](#integrasi-de--ml)
+
+---
+
+## Fitur Utama
+
+### Pengayaan Fitur Otomatis (DE Pipeline)
+
+Ketika file CSV diunggah, backend secara otomatis memperkaya data sebelum dikirim ke lapisan ML:
+
+| Fitur | Deskripsi |
+| :--- | :--- |
+| **Deteksi Hari Libur Nasional** | Mendeteksi hari libur nasional Indonesia untuk semua tahun dalam dataset menggunakan `holidays.Indonesia` |
+| **Penandaan Hari Gajian (Payday)**| Menandai jendela hari gajian (tanggal 25–31 dan 1–3 setiap bulan) sebagai `is_payday` |
+| **IQR Outlier Capping** | Membatasi nilai `quantity_sold` yang ekstrem per produk menggunakan ambang batas $Q3 + 1.5 \times IQR$ |
+| **Pemetaan Format Colab** | Secara otomatis memetakan kolom dari file ekspor Colab (`ds`, `Category`, `y_capped`) ke skema backend |
+
+### Mesin Peramalan ML dengan Regressor Eksternal
+
+Kedua model peramalan mengintegrasikan fitur `is_holiday` dan `is_payday` sebagai masukan eksternal:
+
+- **Prophet** — melalui `model.add_regressor()`, dengan proyeksi otomatis fitur masa depan
+- **ARIMA / SARIMAX** — melalui parameter `exog`, dengan variabel eksogen masa depan yang cocok
+
+### Migrasi Database Otomatis saat Startup
+
+Aplikasi menambahkan kolom `is_holiday` dan `is_payday` ke tabel `sales_records` secara otomatis pada saat pertama kali dijalankan — tidak memerlukan langkah migrasi manual.
+
+---
+
+## Stack Teknologi
+
+| Lapisan | Teknologi |
+| :--- | :--- |
+| Web Framework | FastAPI |
+| Database | PostgreSQL (asinkron via `asyncpg`) |
+| ORM | SQLAlchemy (asinkron) |
+| Peramalan (ML) | Prophet · statsmodels (SARIMAX) |
+| Autentikasi | JWT (python-jose) · bcrypt |
+| Feature Engineering | holidays · pandas |
+| Validasi | Pydantic v2 |
+
+---
+
+## Struktur Proyek
 
 ```
 stocksight-api/
 ├── app/
-│   ├── main.py                  # Entry point FastAPI
+│   ├── main.py                         # Entry point FastAPI & migrasi lifespan startup
 │   ├── api/v1/
-│   │   ├── router.py            # Agregator semua router
+│   │   ├── router.py                   # Agregator rute/endpoint
 │   │   └── endpoints/
-│   │       ├── auth.py          # POST /register, /login, GET /me
-│   │       ├── uploads.py       # Upload & pipeline CSV
-│   │       ├── products.py      # CRUD produk & sales
-│   │       ├── forecasts.py     # Trigger & ambil hasil ML
-│   │       └── inventory_dashboard.py  # Reorder, alert, summary
+│   │       ├── auth.py                 # POST /register, /login · GET /me
+│   │       ├── uploads.py              # Upload CSV & trigger pipeline DE
+│   │       ├── products.py             # Endpoint produk & riwayat penjualan
+│   │       ├── forecasts.py            # Trigger & hasil forecast ML
+│   │       └── inventory_dashboard.py  # Reorder alert & ringkasan dasbor
 │   ├── core/
-│   │   ├── config.py            # Settings dari .env
-│   │   └── security.py          # JWT & password hashing
+│   │   ├── config.py                   # Pengaturan aplikasi (dimuat dari .env)
+│   │   └── security.py                 # Pembuatan JWT & hashing kata sandi
 │   ├── db/
-│   │   └── session.py           # Async SQLAlchemy engine
+│   │   └── session.py                  # Async SQLAlchemy engine & session
 │   ├── models/
-│   │   └── models.py            # ORM: User, Upload, Product, ...
+│   │   └── models.py                   # Model ORM: User, Upload, Product, SalesRecord, Forecast
 │   ├── schemas/
-│   │   └── schemas.py           # Pydantic request/response
+│   │   └── schemas.py                  # Skema request/response Pydantic
 │   └── services/
-│       ├── user_service.py      # DB ops untuk user
-│       ├── pipeline_service.py  # Validasi & ingest CSV
-│       ├── forecast_service.py  # Prophet & ARIMA engine
-│       └── inventory_service.py # Reorder point & alert
-├── requirements.txt
+│       ├── pipeline_service.py         # Validasi CSV, pemetaan Colab & enrich_features()
+│       ├── forecast_service.py         # Mesin Prophet & ARIMA dengan regressors/exog
+│       ├── inventory_service.py        # Kalkulasi Reorder Point & Safety Stock
+│       └── user_service.py             # Operasi database untuk User
 ├── .env.example
+├── requirements.txt
 └── README.md
 ```
 
-#### Setup & Menjalankan API Backend
+---
 
-1. **Clone & install dependencies**
-   ```bash
-   cd stocksight-api
-   python -m venv venv
-   source venv/bin/activate        # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. **Konfigurasi environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env: isi DATABASE_URL dan SECRET_KEY
-   ```
-3. **Jalankan API**
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-4. **Buka dokumentasi interaktif**
-   - Swagger UI : http://localhost:8000/docs
-   - ReDoc : http://localhost:8000/redoc
+## Langkah Memulai
 
-#### Alur Penggunaan API
+### Prasyarat
 
-```
-1. POST /api/v1/auth/register   → buat akun
-2. POST /api/v1/auth/login      → dapat JWT token
-3. POST /api/v1/uploads         → upload CSV penjualan (async pipeline)
-4. GET  /api/v1/uploads/:id     → cek status pipeline (pending/done/error)
-5. GET  /api/v1/products        → lihat produk hasil parsing
-6. POST /api/v1/forecasts       → trigger forecasting Prophet/ARIMA (async)
-7. GET  /api/v1/forecasts/:id/details → ambil prediksi harian
-8. GET  /api/v1/inventory/reorder    → reorder point & safety stock
-9. GET  /api/v1/dashboard/summary    → ringkasan untuk dashboard
+- Python 3.10+
+- PostgreSQL 14+
+
+### Instalasi
+
+```bash
+# 1. Clone repositori
+git clone https://github.com/shavel28/StockSight-AI-PJK-GM073.git
+cd StockSight-AI-PJK-GM073
+
+# 2. Buat dan aktifkan virtual environment
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# 3. Install dependensi
+pip install -r requirements.txt
+
+# 4. Konfigurasi environment variables
+cp .env.example .env
+# Edit berkas .env — sesuaikan isi DATABASE_URL dan SECRET_KEY
 ```
 
-#### Format CSV yang Didukung
+### Environment Variables
 
-| Kolom           | Tipe       | Wajib |
-| :-------------- | :--------- | :---- |
-| `product_name`  | string     | Ya    |
-| `sale_date`     | YYYY-MM-DD | Ya    |
-| `quantity_sold` | integer    | Ya    |
-| `revenue`       | float      | Tidak |
-| `category`      | string     | Tidak |
-| `region`        | string     | Tidak |
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/stocksight
+SECRET_KEY=kunci_rahasia_anda_di_sini
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+UPLOAD_DIR=./uploads
+MAX_UPLOAD_SIZE_MB=10
+```
+
+### Jalankan API
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+| Antarmuka | URL |
+| :--- | :--- |
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+| Health Check | http://localhost:8000/health |
 
 ---
+
+## Alur Penggunaan API
+
+Alur penggunaan umum dari ujung-ke-ujung (end-to-end) bagi pengguna baru:
+
+```
+1.  POST /api/v1/auth/register          → Buat akun baru
+2.  POST /api/v1/auth/login             → Dapatkan token JWT
+3.  POST /api/v1/uploads                → Unggah CSV (Format mentah atau ekspor Colab)
+4.  GET  /api/v1/uploads/:id            → Polling status pipeline (pending → processing → done)
+5.  GET  /api/v1/products               → Dapatkan daftar produk dan ambil product_id
+6.  POST /api/v1/forecasts              → Trigger peramalan Prophet atau ARIMA
+7.  GET  /api/v1/forecasts/:id          → Polling status peramalan
+8.  GET  /api/v1/forecasts/:id/details  → Ambil detail proyeksi harian beserta MAPE & RMSE
+9.  GET  /api/v1/inventory/reorder      → Periksa Safety Stock dan Reorder Point produk
+10. GET  /api/v1/dashboard/summary      → Ringkasan data untuk dasbor utama
+```
+
+> Semua endpoint kecuali `/auth/register` dan `/auth/login` memerlukan token `Bearer` yang dikirimkan pada header `Authorization`.
+
+---
+
+## Format CSV yang Didukung
+
+Pipeline secara cerdas mendeteksi format file saat diunggah.
+
+### Format 1 — Data Penjualan Mentah (Raw Sales Data)
+
+| Kolom | Tipe | Wajib | Catatan |
+| :--- | :--- | :--- | :--- |
+| `product_name` | string | ✅ | Contoh: `"Kopi Susu"` |
+| `sale_date` | YYYY-MM-DD | ✅ | |
+| `quantity_sold`| integer | ✅ | |
+| `revenue` | float | ❌ | |
+| `category` | string | ❌ | |
+| `region` | string | ❌ | |
+
+### Format 2 — Ekspor Google Colab
+
+Jika file mengandung struktur kolom khas Colab, backend akan memetakan kolom tersebut secara otomatis:
+
+| Kolom Colab | Dipetakan Ke |
+| :--- | :--- |
+| `ds` | `sale_date` |
+| `Category` | `product_name` |
+| `y` / `y_capped` / `y_original` | `quantity_sold` |
+| `is_holiday` / `is_payday` | Dibaca langsung, tidak perlu dihitung ulang |
+
+---
+
+## Integrasi DE + ML
+
+### Alur Pipeline
+
+```
+[Unggah CSV]
+     │
+     ▼
+pipeline_service.py
+  ├─ Deteksi format (mentah / ekspor Colab)
+  ├─ Validasi kolom wajib
+  ├─ enrich_features()
+  │    ├─ Deteksi hari libur nasional Indonesia
+  │    ├─ Tandai hari gajian (tanggal 25–31 & 1–3)
+  │    └─ Batasi pencilan (IQR capping) per produk
+  └─ Ingest (Upsert) → Product & SalesRecord (DB)
+                              │
+                              ▼
+                     [POST /forecasts]
+                              │
+                              ▼
+                   forecast_service.py
+                     ├─ Query SalesRecord → DataFrame
+                     ├─ _run_prophet()
+                     │    ├─ add_regressor("is_holiday")
+                     │    ├─ add_regressor("is_payday")
+                     │    └─ Proyeksikan regressor masa depan otomatis
+                     └─ _run_arima()
+                          ├─ exog = [is_holiday, is_payday]
+                          └─ Proyeksikan variabel eksogen masa depan otomatis
+                              │
+                              ▼
+                   ForecastDetail (DB)
+                   MAPE · RMSE · hasil prediksi harian
+```
+
+### Request Body untuk Forecast
+
+```json
+{
+  "product_id": "uuid-di-sini",
+  "model": "prophet",
+  "horizon_days": 30,
+  "include_holidays": true
+}
+```

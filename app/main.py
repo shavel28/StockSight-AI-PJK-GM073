@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -14,6 +15,9 @@ async def lifespan(app: FastAPI):
     # Buat tabel dan folder upload saat startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Pastikan kolom is_holiday dan is_payday ada di tabel sales_records
+        await conn.execute(text("ALTER TABLE sales_records ADD COLUMN IF NOT EXISTS is_holiday INTEGER DEFAULT 0;"))
+        await conn.execute(text("ALTER TABLE sales_records ADD COLUMN IF NOT EXISTS is_payday INTEGER DEFAULT 0;"))
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     yield
 
@@ -27,7 +31,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Ganti dengan domain frontend saat production
+    allow_origins=["https://frontend-stocksight.vercel.app/"],   # Ganti dengan domain frontend saat production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
