@@ -368,7 +368,6 @@ Sebagai **Frontend Developer & UI/UX Designer**, tanggung jawab utama meliputi:
 Repository ini berisi kode sumber untuk **Frontend (Antarmuka Pengguna)** yang menjembatani data dari AI *Backend* menjadi dasbor visual yang interaktif dan mudah dipahami.
 
 🌐 **Akses Live Aplikasi:** [https://stocksight-pjkgm073.up.railway.app](https://stocksight-pjkgm073.up.railway.app)
-💻 **Source Code:** [https://github.com/duchessmileena/StockSightCapstone/tree/main](https://github.com/duchessmileena/StockSightCapstone/tree/main)
 
 ## ✨ Fitur Antarmuka (UI/UX)
 1. 🔐 **Sistem Autentikasi:** Halaman Login dan Registrasi interaktif dengan pengelolaan sesi *token-based*.
