@@ -360,7 +360,7 @@ Sebagai **Frontend Developer & UI/UX Designer**, tanggung jawab utama meliputi:
 
 # 📈 Stocksight AI - Frontend Client
 
-[![Github Deploy](https://img.shields.io/badge/Live_Demo-Akses_Aplikasi-success?style=for-the-badge)]([[https://stocksight-pjkgm073.up.railway.app](https://github.com/duchessmileena/StockSightCapstone/tree/main)](https://github.com/duchessmileena/StockSightCapstone/tree/main))
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Akses_Aplikasi-success?style=for-the-badge)](https://stocksight-pjkgm073.up.railway.app)
 
 **Stocksight AI** adalah platform web analitik berbasis *Machine Learning* yang dirancang untuk membantu pemilik bisnis memprediksi permintaan produk di masa depan, mendeteksi anomali penjualan, dan mengelola stok gudang secara cerdas. 
 
